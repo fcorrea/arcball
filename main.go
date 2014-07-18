@@ -6,7 +6,6 @@ import (
 	"github.com/go-gl/gl"
 	glfw "github.com/go-gl/glfw3"
 	"github.com/go-gl/glh"
-	// "github.com/go-gl/glu"
 	mgl "github.com/go-gl/mathgl/mgl64"
 )
 
@@ -37,13 +36,32 @@ func MakeCube() *glh.MeshBuffer {
 	return cube
 }
 
+func LoadMatrix(mat mgl.Mat4) {
+	arg := [16]float64(mat)
+	gl.LoadMatrixd(&arg)
+}
+
+func GetMatrix(which gl.GLenum) mgl.Mat4 {
+	var mat [16]float64
+	gl.GetDoublev(which, mat[:])
+	return mat
+}
+
+func LoadQuat(quat mgl.Quat) {
+	LoadMatrix(quat.Normalize().Mat4())
+}
+
+func Vertex(v mgl.Vec3) {
+	gl.Vertex3d(v[0], v[1], v[2])
+}
+
 func main() {
 
 	const (
 		startFullscreen = false
 		windowTitle     = "ToggleFullscreen"
-		defW            = 1280
-		defH            = 768
+		defW            = 512
+		defH            = 512
 	)
 
 	window, err := NewWindow(windowTitle, startFullscreen, defW, defH, nil)
@@ -55,24 +73,32 @@ func main() {
 	window.SetFramebufferSizeCallback(func(_ *glfw.Window, w, h int) {
 		gl.Viewport(0, 0, w, h)
 
-		gl.MatrixMode(gl.PROJECTION)
-		gl.LoadIdentity()
-
 		ratio := float64(h) / float64(w)
-		// gl.Frustum(-1, 1, -ratio, ratio, 4, 100)
-		const s = 10
-		gl.Ortho(-1*s, 1*s, -ratio*s, ratio*s, -100, 100)
 
-		gl.Translated(0, 0, -20)
+		p := mgl.Frustum(-1, 1, -ratio, ratio, 4, 100)
+		p = p.Mul4(mgl.Translate3D(0, 0, -20))
+
+		gl.MatrixMode(gl.PROJECTION)
+		LoadMatrix(p)
 	})
 
 	arcball := NewArcball(window.Window)
+
+	window.SetKeyCallback(func(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
+		if action != glfw.Press {
+			return
+		}
+		switch key {
+		case glfw.KeyR:
+			arcball.Reset()
+		}
+	})
 
 	cube := MakeCube()
 
 	// ident := mgl.QuatRotate(0.2, mgl.Vec3{1, 0, 0})
 	ident := mgl.QuatIdent()
-	delta := mgl.QuatRotate(0, mgl.Vec3{0, 1, 0})
+	// delta := mgl.QuatRotate(0, mgl.Vec3{0, 1, 0})
 
 	for !window.ShouldClose() {
 
@@ -81,9 +107,7 @@ func main() {
 		gl.MatrixMode(gl.MODELVIEW)
 		gl.LoadIdentity()
 
-		delta = delta
-		i := [16]float64(ident.Mul(arcball.Rotation()).Normalize().Mat4())
-		gl.MultMatrixd(&i)
+		LoadQuat(ident.Mul(arcball.Rotation()))
 
 		gl.Color4f(1, 1, 1, 1)
 		cube.Render(gl.LINES)
