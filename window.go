@@ -31,8 +31,9 @@ func NewWindow(title string, fullscreen bool, w, h int, oldWindow *Window) (*Win
 		// LockOSThread.
 		runtime.LockOSThread()
 
-		if !glfw.Init() {
-			return nil, fmt.Errorf("glfw.Init() failed")
+		err := glfw.Init()
+		if err != nil {
+			return nil, fmt.Errorf("glfw.Init() failed: %q", err)
 		}
 		// defer glfw.Terminate()
 

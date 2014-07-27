@@ -174,14 +174,11 @@ func (a *Arcball) Draw() {
 		p = v2.Vec3(-math.Sqrt(1 - math.Pow(v2.Len(), 2)))
 	} else {
 		v2 = v2.Normalize()
-		p = v2.Vec3(-math.Sqrt(1 - math.Pow(v2.Len(), 2)))
+		p = v2.Vec3(0)
 	}
 	// p[2] = -1
 
 	var up mgl.Vec3
-
-	dir := mgl.Vec2{0, 1}
-	dir = mgl.Rotate2D(glfw.GetTime()).Mul2x1(dir)
 
 	glfw.GetTime()
 	_ = math.Cos
@@ -199,7 +196,11 @@ func (a *Arcball) Draw() {
 	initDir := up.Cross(mgl.Vec3{1, 0, 0})
 	rA := mgl.QuatLookAtV(eye, initDir, up)
 	rB := mgl.QuatLookAtV(eye, p, up)
-	amt := 0.5 + math.Sin(glfw.GetTime()*4)/2
+	t, err := glfw.GetTime()
+	if err != nil {
+		panic(err)
+	}
+	amt := 0.5 + math.Sin(t*4)/2
 	amt = 1
 
 	theRotation := mgl.QuatSlerp(rA, rB, amt).Normalize().Mat4()
