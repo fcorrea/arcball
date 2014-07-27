@@ -185,12 +185,10 @@ func (a *Arcball) Draw() {
 
 	// v := math.Cos(math.Pi * (1 + p.Y()) / 2)
 	yPos := mgl.Clamp(p.Y(), -1, 1)
-	theta := math.Asin(yPos) + math.Pi/2
-	v := math.Cos(theta)
+	//theta := math.Asin(yPos) + math.Pi/2
+	//v := math.Cos(theta)
 
-	up = mgl.Vec3{-p.X() * p.Y(), -math.Sin(theta), -v}
-	//up = mgl.Vec3{math.Sin(theta), -p.X() * p.Y(), -v}
-	//up = p.Cross(mgl.Vec3{0, - 1 + math.Abs(yPos), yPos})
+	up = mgl.Vec3{0, -1, -yPos}
 	up = p.Cross(up)
 	up = p.Cross(up)
 	up = up.Normalize()
