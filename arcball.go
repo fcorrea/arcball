@@ -184,11 +184,14 @@ func (a *Arcball) Draw() {
 	_ = math.Cos
 
 	// v := math.Cos(math.Pi * (1 + p.Y()) / 2)
-	yPos := mgl.Clamp(p.Y(), -1, 1)
-	theta := math.Asin(yPos) + math.Pi/2
-	v := math.Cos(theta)
+	//yPos := mgl.Clamp(p.Y(), -1, 1)
+	//theta := math.Asin(yPos) + math.Pi/2
+	//v := math.Cos(theta)
 
-	up = mgl.Vec3{-p.X() * p.Y(), math.Sin(theta), -v}
+	//up = mgl.Vec3{-p.X() * p.Y(), math.Sin(theta), -v}
+	up = p.Cross(mgl.Vec3{0, -1, 0})
+	up = p.Cross(up)
+	up = up.Normalize()
 	// up = p.Cross(mgl.Vec3{0, 0, -1})
 	eye := mgl.Vec3{0, 0, 0}
 	// p = mgl.Vec3{-p.X(), -p.Y(), p.Z()}
