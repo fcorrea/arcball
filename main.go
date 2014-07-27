@@ -42,9 +42,23 @@ func LoadMatrix(mat mgl.Mat4) {
 }
 
 func GetMatrix(which gl.GLenum) mgl.Mat4 {
+	switch which {
+	case gl.MODELVIEW:
+		which = gl.MODELVIEW_MATRIX
+	case gl.PROJECTION:
+		which = gl.PROJECTION_MATRIX
+	}
 	var mat [16]float64
 	gl.GetDoublev(which, mat[:])
 	return mat
+}
+
+func MulMatrix(mat mgl.Mat4) {
+	var which [1]int32
+	gl.GetIntegerv(gl.MATRIX_MODE, which[:])
+	prev := mgl.Mat4(GetMatrix(gl.GLenum(which[0])))
+	// LoadMatrix(mat.Mul4(prev))
+	LoadMatrix(prev.Mul4(mat))
 }
 
 func LoadQuat(quat mgl.Quat) {
@@ -75,7 +89,12 @@ func main() {
 
 		ratio := float64(h) / float64(w)
 
-		p := mgl.Frustum(-1, 1, -ratio, ratio, 4, 100)
+		p := mgl.Ortho(-1, 1, -ratio, ratio, -10, 10)
+		const s = 0.2
+		p = p.Mul4(mgl.Scale3D(s, s, s))
+
+		// p := mgl.Frustum(-1, 1, -ratio, ratio, 4, 100)
+
 		p = p.Mul4(mgl.Translate3D(0, 0, -20))
 
 		gl.MatrixMode(gl.PROJECTION)
@@ -109,9 +128,9 @@ func main() {
 
 		LoadQuat(ident.Mul(arcball.Rotation()))
 
-		gl.Color4f(1, 1, 1, 1)
-		cube.Render(gl.LINES)
-		// _ = cube
+		// gl.Color4f(1, 1, 1, 1)
+		// cube.Render(gl.LINES)
+		_ = cube
 
 		arcball.Draw()
 		// gl.LoadIdentity()

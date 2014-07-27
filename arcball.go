@@ -79,7 +79,6 @@ func (a *Arcball) mouseClicked(w *glfw.Window, button glfw.MouseButton, action g
 }
 
 func (a *Arcball) FramebufferSized(win *glfw.Window, w, h int) {
-	println("Framebuffer sized")
 	a.w, a.h = float64(w), float64(h)
 
 	if a.oldFramebufferSized != nil {
@@ -150,12 +149,25 @@ func (a *Arcball) Draw() {
 	if q == nil {
 		q = glu.NewQuadric()
 	}
-	gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
-	gl.Color4f(0.4, 0.4, 0.4, 1)
-	glu.Sphere(q, 1, 10, 10)
-	gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
+
+	drawSphere := func() {
+		glh.With(glh.Attrib{gl.ENABLE_BIT | gl.POLYGON_BIT}, func() {
+			gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
+			gl.Enable(gl.BLEND)
+			// glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+			gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+			// gl.Color4f(0.4, 0.4, 0.4, 0.5)
+			gl.LineWidth(2)
+			gl.Color4f(0.75, 0.75, 0.75, 0.25)
+			glu.Sphere(q, 1, 20, 20)
+		})
+	}
 
 	p := a.MouseIn3DSpace()
+	// p[0] = 0
+	// t := glfw.GetTime()
+	// p = mgl.Vec3{math.Sin(t), math.Cos(t), 0}
+	// p = p.Mul(0.75)
 
 	v2 := p.Vec2()
 	if v2.Len() < 1 {
@@ -164,64 +176,121 @@ func (a *Arcball) Draw() {
 		v2 = v2.Normalize()
 		p = v2.Vec3(-math.Sqrt(1 - math.Pow(v2.Len(), 2)))
 	}
-	log.Println(p[2])
-	// log.Println(p, p.Normalize())
+	// p[2] = -1
+
 	var up mgl.Vec3
-	// up := p.Vec2().Vec3(0).Normalize().Cross(mgl.Vec3{0, 0, -1})
-	// p[1] *= -1
-	gl.PushMatrix()
-	gl.LoadIdentity()
 
 	dir := mgl.Vec2{0, 1}
 	dir = mgl.Rotate2D(glfw.GetTime()).Mul2x1(dir)
-	// log.Println(unitY)
 
 	glfw.GetTime()
 	_ = math.Cos
 
-	up = mgl.Vec3{0, 2, 0}
-	// p = mgl.Vec3{dir.X(), dir.Y(), math.Sin(glfw.GetTime())}
-	up = p.Cross(mgl.Vec3{0, 0, -1})
-	eye := mgl.Vec3{0, 0, 0}
+	// v := math.Cos(math.Pi * (1 + p.Y()) / 2)
+	yPos := mgl.Clamp(p.Y()/2, -1, 1)
+	theta := math.Asin(yPos) + math.Pi/2
+	v := math.Cos(theta)
+
+	up = mgl.Vec3{-p.X() * p.Y() / 2, math.Sin(theta), -v}
 	// up = p.Cross(mgl.Vec3{0, 0, -1})
-	// log.Println("Dir =", p, "Up =", up)
+	eye := mgl.Vec3{0, 0, 0}
+	// p = mgl.Vec3{-p.X(), -p.Y(), p.Z()}
 
-	// lookat := mgl.QuatLookAtV(mgl.Vec3{0, 0, 0}, p, up)
+	initDir := up.Cross(mgl.Vec3{1, 0, 0})
+	rA := mgl.QuatLookAtV(eye, initDir, up)
+	rB := mgl.QuatLookAtV(eye, p, up)
+	amt := 0.5 + math.Sin(glfw.GetTime()*4)/2
+	amt = 1
 
-	lookat := mgl.Ident4()
-	lookat = mgl.LookAtV(eye, p, up).Mul4(lookat)
-	lookat = mgl.HomogRotate3DY(mgl.DegToRad(90)).Mul4(lookat)
-	lookat = mgl.HomogRotate3DZ(mgl.DegToRad(180)).Mul4(lookat)
-	lookat = lookat.Mul4(a.Rotation().Normalize().Mat4())
-	// lookat = mgl.HomogRotate3DX(mgl.DegToRad(90)).Mul4(lookat)
-	// LoadQuat(mgl.QuatSlerp(mgl.QuatIdent(), lookat, 10))
-	// LoadQuat(lookat)
-	LoadMatrix(lookat)
-	// log.Println("mgl =", lookat)
-	_ = lookat
+	theRotation := mgl.QuatSlerp(rA, rB, amt).Normalize().Mat4()
 
-	// glu.LookAt(0, 0, 0, up.X(), up.Y(), up.Z(), p.X(), p.Y(), p.Z())
+	p = mgl.Vec3{p.X(), p.Y(), -p.Z()}
+	up = mgl.Vec3{up.X(), up.Y(), -up.Z()}
 
-	// m := GetMatrix(gl.MODELVIEW_MATRIX)
-	// log.Println("gl =", m)
-	glh.DrawAxes()
+	showAxes := func(rot func()) {
 
-	gl.PopMatrix()
+		glh.With(glh.Matrix{gl.MODELVIEW}, func() {
+			const s = 0.5
+			gl.Rotated(10, -1, 1, 0)
+			gl.Translated(-1, -1, 0)
+			gl.Scaled(s, s, s)
+			rot()
+			glh.DrawAxes()
+		})
 
-	// p[1] *= -1
-	gl.PushMatrix()
-	gl.LoadIdentity()
-	// gl.Rotated(90, 1, 0, 0)
+		rot()
+	}
 
-	gl.PointSize(10)
-	gl.Begin(gl.POINTS)
+	show := func(mov, rot func()) {
+		glh.With(glh.Matrix{gl.MODELVIEW}, func() {
+			gl.LoadIdentity()
+			mov()
+			showAxes(rot)
 
-	gl.Color3d(1, 0, 0)
-	Vertex(p)
+			MulMatrix(theRotation)
+			// _ = theRotation
+			glh.DrawAxes()
+			drawSphere()
+		})
+	}
 
-	gl.End()
+	// Draw the three views
+	show(func() {}, func() {})
 
-	gl.PopMatrix()
+	show(func() {
+		gl.Translated(-3, 0, 0)
+	}, func() {
+		gl.Rotated(90, 0, 1, 0)
+	})
+
+	show(func() {
+		gl.Translated(3, 0, 0)
+	}, func() {
+		gl.Rotated(90, 1, 0, 0)
+	})
+
+	// Draw the points in the three views without applying the lookAt rotation
+	glh.With(glh.Matrix{gl.MODELVIEW}, func() {
+		gl.LoadIdentity()
+
+		gl.PointSize(10)
+
+		pts := func() {
+			glh.With(glh.Primitive{gl.POINTS}, func() {
+				gl.Color3d(1, 0, 0)
+				Vertex(p)
+				gl.Color3d(0, 1, 0)
+				Vertex(eye)
+				gl.Color3d(0, 0, 1)
+				Vertex(up)
+			})
+
+			gl.Color3d(1, 1, 0.25)
+			// Draw white line to red dot
+			glh.With(glh.Primitive{gl.LINES}, func() {
+				Vertex(mgl.Vec3{0, 0, 0})
+				Vertex(p)
+			})
+			// Draw "up" from red dot
+			glh.With(glh.Primitive{gl.LINES}, func() {
+				Vertex(p)
+				Vertex(p.Add(up.Mul(0.25)))
+			})
+		}
+
+		pts()
+
+		gl.LoadIdentity()
+		gl.Translated(-3, 0, 0)
+		gl.Rotated(90, 0, 1, 0)
+		pts()
+
+		gl.LoadIdentity()
+		gl.Translated(3, 0, 0)
+		gl.Rotated(90, 1, 0, 0)
+		pts()
+
+	})
 
 }
 
