@@ -267,6 +267,9 @@ func (a *Arcball) Draw() {
 				Vertex(eye)
 				gl.Color3d(0, 0, 1)
 				Vertex(up)
+				newPt := theRotation.Mul4x1(mgl.Vec4{0, 0, ah1, 0})
+				gl.Color3d(0, 1, 1)
+				Vertex(newPt.Vec3())
 			})
 
 			gl.Color3d(1, 1, 0.25)
