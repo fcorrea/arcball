@@ -157,9 +157,10 @@ func (a *Arcball) Draw() {
 			// glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 			gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 			// gl.Color4f(0.4, 0.4, 0.4, 0.5)
+
 			gl.LineWidth(2)
 			gl.Color4f(0.75, 0.75, 0.75, 0.25)
-			glu.Sphere(q, 1, 20, 20)
+			glu.Sphere(q, 1, 8, 8)
 		})
 	}
 
@@ -169,6 +170,7 @@ func (a *Arcball) Draw() {
 	// p = mgl.Vec3{math.Sin(t), math.Cos(t), 0}
 	// p = p.Mul(0.75)
 
+	// Put the Z coordinate of the mouse on the sphere
 	v2 := p.Vec2()
 	if v2.Len() < 1 {
 		p = v2.Vec3(-math.Sqrt(1 - math.Pow(v2.Len(), 2)))
@@ -176,38 +178,41 @@ func (a *Arcball) Draw() {
 		v2 = v2.Normalize()
 		p = v2.Vec3(0)
 	}
-	// p[2] = -1
 
 	var up mgl.Vec3
-
-	glfw.GetTime()
-	_ = math.Cos
+	eye := mgl.Vec3{0, 0, 0}
 
 	// v := math.Cos(math.Pi * (1 + p.Y()) / 2)
 	yPos := mgl.Clamp(p.Y(), -1, 1)
-	//theta := math.Asin(yPos) + math.Pi/2
-	//v := math.Cos(theta)
 
 	up = mgl.Vec3{0, -1, -yPos}
 	up = p.Cross(up)
 	up = p.Cross(up)
 	up = up.Normalize()
-	// up = p.Cross(mgl.Vec3{0, 0, -1})
-	eye := mgl.Vec3{0, 0, 0}
-	// p = mgl.Vec3{-p.X(), -p.Y(), p.Z()}
-
-	initDir := up.Cross(mgl.Vec3{1, 0, 0})
-	rA := mgl.QuatLookAtV(eye, initDir, up)
+	// "To" rotation, looking at mouse cursor
 	rB := mgl.QuatLookAtV(eye, p, up)
+
+	// "From" rotation: looking at camera
+	initDir := mgl.Vec3{0, 0, -1}
+	initUp := mgl.Vec3{0, 1, 0}
+	rA := mgl.QuatLookAtV(eye, initDir, initUp)
+
 	t, err := glfw.GetTime()
 	if err != nil {
 		panic(err)
 	}
 	amt := 0.5 + math.Sin(t*4)/2
+	// amt = 0
 	amt = 1
+	// amt *= 1.1
 
+	_, _, _ = rA, rB, amt
 	theRotation := mgl.QuatSlerp(rA, rB, amt).Normalize().Mat4()
+	// theRotation := mgl.QuatIdent().Mat4()
+	// theRotation := rA.Normalize().Mat4()
 
+	// Something must be wrong with my coordinate system.
+	// I'd like to eliminate the need to flip Z at this point.
 	p = mgl.Vec3{p.X(), p.Y(), -p.Z()}
 	up = mgl.Vec3{up.X(), up.Y(), -up.Z()}
 
@@ -232,7 +237,7 @@ func (a *Arcball) Draw() {
 			showAxes(rot)
 
 			MulMatrix(theRotation)
-			// _ = theRotation
+			_ = theRotation
 			glh.DrawAxes()
 			drawSphere()
 		})
@@ -263,22 +268,24 @@ func (a *Arcball) Draw() {
 			glh.With(glh.Primitive{gl.POINTS}, func() {
 				gl.Color3d(1, 0, 0)
 				Vertex(p)
+
 				gl.Color3d(0, 1, 0)
 				Vertex(eye)
+
 				gl.Color3d(0, 0, 1)
 				Vertex(up)
-				newPt := theRotation.Mul4x1(mgl.Vec4{0, 0, ah1, 0})
+				newPt := theRotation.Mul4x1(mgl.Vec4{0, 0, 1, 0})
 				gl.Color3d(0, 1, 1)
 				Vertex(newPt.Vec3())
 			})
 
 			gl.Color3d(1, 1, 0.25)
-			// Draw white line to red dot
+			// Draw white line from centre to red dot (mouse coordinate)
 			glh.With(glh.Primitive{gl.LINES}, func() {
 				Vertex(mgl.Vec3{0, 0, 0})
 				Vertex(p)
 			})
-			// Draw "up" from red dot
+			// Draw "up" from red dot (the tangent vector)
 			glh.With(glh.Primitive{gl.LINES}, func() {
 				Vertex(p)
 				Vertex(p.Add(up.Mul(0.25)))
