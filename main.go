@@ -89,11 +89,11 @@ func main() {
 
 		ratio := float64(h) / float64(w)
 
-		p := mgl.Ortho(-1, 1, -ratio, ratio, -10, 10)
+		p := mgl.Perspective(0.5, 1/ratio, 0.1, 100)
+		p = mgl.Frustum(-1, 1, -ratio, ratio, 3, 100)
+		// p := mgl.Ortho(-1, 1, -ratio, ratio, -10, 30)
 		const s = 0.2
 		p = p.Mul4(mgl.Scale3D(s, s, s))
-
-		// p := mgl.Frustum(-1, 1, -ratio, ratio, 4, 100)
 
 		p = p.Mul4(mgl.Translate3D(0, 0, -20))
 
