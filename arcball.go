@@ -230,36 +230,6 @@ func (a *Arcball) Draw() {
 		}, func() {
 			gl.Rotated(90, 1, 0, 0)
 		})
-
-		// Draw the points in the three views without applying the lookAt rotation
-		glh.With(glh.Matrix{gl.MODELVIEW}, func() {
-
-			gl.PointSize(10)
-
-			pts := func() {
-				glh.With(glh.Primitive{gl.POINTS}, func() {
-					gl.Color3d(1, 0, 0)
-					Vertex(p)
-
-					gl.Color3d(0, 1, 0)
-					Vertex(eye)
-				})
-			}
-
-			gl.LoadIdentity()
-			pts()
-
-			gl.LoadIdentity()
-			gl.Translated(-3, 0, 0)
-			gl.Rotated(90, 0, 1, 0)
-			pts()
-
-			gl.LoadIdentity()
-			gl.Translated(3, 0, 0)
-			gl.Rotated(90, 1, 0, 0)
-			pts()
-
-		})
 	})
 
 }
