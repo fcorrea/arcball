@@ -120,6 +120,9 @@ func FullscreenWindow(title string, monitor *glfw.Monitor, mode *glfw.VideoMode,
 		}
 	}
 
+	glfw.WindowHint(glfw.RefreshRate, mode.RefreshRate)
+	glfw.WindowHint(glfw.Samples, 4)
+
 	window, err := glfw.CreateWindow(mode.Width, mode.Height, title, monitor, oldWindow)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create window:", err)
