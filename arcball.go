@@ -179,7 +179,10 @@ func (a *Arcball) Draw() {
 	p = MouseOnSphere(p.Vec2(), r)
 
 	eye := mgl.Vec3{0, 0, 0}
-	theRotation := QuatLookAtV(eye, p.Vec2().Vec3(-p.Z())).Mat4()
+
+	// I don't understand why I need to flip this coordinate :(
+	pPrime := p.Vec2().Vec3(-p.Z())
+	theRotation := QuatLookAtV(eye, pPrime).Mat4()
 
 	// Twist
 	// t, _ := glfw.GetTime()
