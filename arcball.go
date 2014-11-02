@@ -21,6 +21,7 @@ type Arcball struct {
 	oldCursorPositioned glfw.CursorPositionCallback
 	oldFramebufferSized glfw.FramebufferSizeCallback
 	oldMouseClicked     glfw.MouseButtonCallback
+	oldKeyPressed       glfw.KeyCallback
 
 	mouse struct {
 		p       mgl.Vec2
@@ -42,16 +43,30 @@ func NewArcball(window *glfw.Window) *Arcball {
 		h:          float64(h),
 		rotation:   mgl.QuatIdent(),
 		dragged:    mgl.QuatIdent(),
-		sphereSize: 1,
+		sphereSize: 4,
 	}
 
 	a.oldFramebufferSized = window.SetFramebufferSizeCallback(a.FramebufferSized)
 	a.oldCursorPositioned = window.SetCursorPositionCallback(a.CursorPositioned)
 	a.oldMouseClicked = window.SetMouseButtonCallback(a.mouseClicked)
+	a.oldKeyPressed = window.SetKeyCallback(a.KeyPressed)
 
 	a.FramebufferSized(window, w, h)
 
 	return a
+}
+
+func (a *Arcball) KeyPressed(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
+	if a.oldKeyPressed != nil {
+		a.oldKeyPressed(w, key, scancode, action, mods)
+	}
+
+	switch key {
+	case glfw.KeyR:
+		if action == glfw.Press {
+			a.rotation = mgl.QuatIdent()
+		}
+	}
 }
 
 func (a *Arcball) mouseVector(x, y float64) mgl.Vec2 {
@@ -64,7 +79,7 @@ func (a *Arcball) mouseClicked(w *glfw.Window, button glfw.MouseButton, action g
 	case glfw.MouseButtonLeft:
 		switch action {
 		case glfw.Press:
-			log.Println("Press")
+			// log.Println("Press")
 			x, y := w.GetCursorPosition()
 			a.mouse.p = mgl.Vec2{x, y}
 
@@ -74,7 +89,7 @@ func (a *Arcball) mouseClicked(w *glfw.Window, button glfw.MouseButton, action g
 			a.currentRotation = a.initRotation
 
 		case glfw.Release:
-			log.Println("Release")
+			// log.Println("Release")
 			a.mouse.pressed = false
 			a.rotation = a.Rotation()
 
@@ -125,8 +140,9 @@ func (a *Arcball) CursorPositioned(w *glfw.Window, x, y float64) {
 	a.mouse.p = mgl.Vec2{x, y}
 
 	if a.mouse.pressed {
-		log.Println("Position")
+		// log.Println("Position")
 		a.currentRotation = a.RotateToMouse(a.mouse.p)
+		a.dragged = a.initRotation.Inverse().Mul(a.currentRotation).Normalize()
 	}
 
 	if a.oldCursorPositioned != nil {
@@ -146,6 +162,7 @@ func (a *Arcball) MouseIn3DSpace(coord mgl.Vec2) mgl.Vec3 {
 
 	// The point doesn't show up if you draw it exactly on the camera plane.
 	unproj[2] *= 0.9999999
+	log.Println(unproj)
 
 	return unproj
 }
@@ -171,7 +188,7 @@ func (a *Arcball) Draw() {
 	if q == nil {
 		q = glu.NewQuadric()
 	}
-	const r = 1
+	const r = 4
 
 	drawSphere := func() {
 		glh.With(glh.Attrib{gl.ENABLE_BIT | gl.POLYGON_BIT}, func() {
@@ -182,7 +199,7 @@ func (a *Arcball) Draw() {
 			// gl.Color4f(0.4, 0.4, 0.4, 0.5)
 
 			gl.LineWidth(2)
-			gl.Color4f(0.75, 0.75, 0.75, 0.25)
+			gl.Color4f(0.75, 0.75, 0.75, 0.05)
 			glu.Sphere(q, r, 8*4, 8*4)
 		})
 	}
@@ -201,8 +218,7 @@ func (a *Arcball) Draw() {
 	// x = 1
 	// a.dragged = mgl.QuatNlerp(a.initRotation, a.currentRotation, 0*x)
 	// a.dragged = a.currentRotation.Sub(a.initRotation).Normalize()
-	a.dragged = a.currentRotation
-	log.Println(a.initRotation, a.currentRotation, a.dragged)
+	// log.Println(a.initRotation, a.currentRotation, a.dragged)
 	theRotation = a.Rotation().Mat4()
 
 	// Twist
@@ -244,17 +260,17 @@ func (a *Arcball) Draw() {
 		// Draw the three views
 		show(func() {}, func() {})
 
-		show(func() {
-			gl.Translated(-3, 0, 0)
-		}, func() {
-			gl.Rotated(90, 0, 1, 0)
-		})
+		// show(func() {
+		// 	gl.Translated(-3, 0, 0)
+		// }, func() {
+		// 	gl.Rotated(90, 0, 1, 0)
+		// })
 
-		show(func() {
-			gl.Translated(3, 0, 0)
-		}, func() {
-			gl.Rotated(90, 1, 0, 0)
-		})
+		// show(func() {
+		// 	gl.Translated(3, 0, 0)
+		// }, func() {
+		// 	gl.Rotated(90, 1, 0, 0)
+		// })
 	})
 
 }

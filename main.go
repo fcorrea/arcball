@@ -115,9 +115,7 @@ func main() {
 
 	cube := MakeCube()
 
-	// ident := mgl.QuatRotate(0.2, mgl.Vec3{1, 0, 0})
 	ident := mgl.QuatIdent()
-	// delta := mgl.QuatRotate(0, mgl.Vec3{0, 1, 0})
 
 	for !window.ShouldClose() {
 
@@ -127,16 +125,12 @@ func main() {
 		gl.LoadIdentity()
 
 		LoadQuat(ident.Mul(arcball.Rotation()))
+		gl.Scaled(2, 2, 2)
 
-		// gl.Color4f(1, 1, 1, 1)
-		// cube.Render(gl.LINES)
-		_ = cube
+		gl.Color4f(1, 1, 1, 1)
+		cube.Render(gl.LINES)
 
 		arcball.Draw()
-		// gl.LoadIdentity()
-		// i = [16]float64(arcball.Rotation().Mat4())
-		// gl.MultMatrixd(&i)
-		// gl.Rotated(90, 1, 0, 0)
 
 		window.SwapBuffers()
 		glfw.PollEvents()
