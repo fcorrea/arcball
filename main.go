@@ -74,8 +74,8 @@ func main() {
 	const (
 		startFullscreen = false
 		windowTitle     = "ToggleFullscreen"
-		defW            = 512
-		defH            = 512
+		defW            = 1024
+		defH            = 1024
 	)
 
 	window, err := NewWindow(windowTitle, startFullscreen, defW, defH, nil)
