@@ -23,14 +23,14 @@ type Arcball struct {
 	oldMouseClicked     glfw.MouseButtonCallback
 
 	mouse struct {
-		coordx, coordy float64
-		p              mgl.Vec2
-		pos            mgl.Vec2
-		down           mgl.Vec2
-		pressed        bool
+		p       mgl.Vec2
+		down    mgl.Vec2
+		pressed bool
 	}
 
-	rotation, dragged mgl.Quat
+	sphereSize float64
+
+	initRotation, currentRotation, rotation, dragged mgl.Quat
 }
 
 func NewArcball(window *glfw.Window) *Arcball {
@@ -38,10 +38,11 @@ func NewArcball(window *glfw.Window) *Arcball {
 	w, h := window.GetFramebufferSize()
 
 	a := &Arcball{
-		w:        float64(w),
-		h:        float64(h),
-		rotation: mgl.QuatIdent(),
-		dragged:  mgl.QuatIdent(),
+		w:          float64(w),
+		h:          float64(h),
+		rotation:   mgl.QuatIdent(),
+		dragged:    mgl.QuatIdent(),
+		sphereSize: 1,
 	}
 
 	a.oldFramebufferSized = window.SetFramebufferSizeCallback(a.FramebufferSized)
@@ -63,13 +64,23 @@ func (a *Arcball) mouseClicked(w *glfw.Window, button glfw.MouseButton, action g
 	case glfw.MouseButtonLeft:
 		switch action {
 		case glfw.Press:
-			a.mouse.down = a.mouseVector(w.GetCursorPosition())
+			log.Println("Press")
+			x, y := w.GetCursorPosition()
+			a.mouse.p = mgl.Vec2{x, y}
+
 			a.mouse.pressed = true
 
+			a.initRotation = a.RotateToMouse(a.mouse.p)
+			a.currentRotation = a.initRotation
+
 		case glfw.Release:
+			log.Println("Release")
 			a.mouse.pressed = false
 			a.rotation = a.Rotation()
+
 			a.dragged = mgl.QuatIdent()
+			a.initRotation = mgl.QuatIdent()
+			a.currentRotation = mgl.QuatIdent()
 		}
 	}
 
@@ -100,21 +111,22 @@ func SpherePoint(in mgl.Vec2) mgl.Vec3 {
 	return p.Mul(10)
 }
 
+func (a *Arcball) RotateToMouse(mousePosition mgl.Vec2) mgl.Quat {
+	p := a.MouseIn3DSpace(mousePosition)
+	p = MouseOnSphere(p.Vec2(), a.sphereSize)
+
+	// I don't understand why I need to flip this coordinate :(
+	pPrime := p.Vec2().Vec3(-p.Z())
+	return QuatLookAtV(mgl.Vec3{0, 0, 0}, pPrime)
+}
+
 func (a *Arcball) CursorPositioned(w *glfw.Window, x, y float64) {
 
-	a.mouse.coordx, a.mouse.coordy = w.GetCursorPosition()
+	a.mouse.p = mgl.Vec2{x, y}
 
 	if a.mouse.pressed {
-		a.mouse.pos = a.mouseVector(x, y)
-
-		start := SpherePoint(a.mouse.down)
-		end := SpherePoint(a.mouse.pos)
-		perp := start.Cross(end)
-		mag := start.Dot(end)
-
-		a.dragged = mgl.QuatRotate(mag/2000, perp)
-	} else {
-		a.mouse.p = mgl.Vec2{x, y}
+		log.Println("Position")
+		a.currentRotation = a.RotateToMouse(a.mouse.p)
 	}
 
 	if a.oldCursorPositioned != nil {
@@ -122,8 +134,8 @@ func (a *Arcball) CursorPositioned(w *glfw.Window, x, y float64) {
 	}
 }
 
-func (a *Arcball) MouseIn3DSpace() mgl.Vec3 {
-	win := a.mouse.p.Vec3(0)
+func (a *Arcball) MouseIn3DSpace(coord mgl.Vec2) mgl.Vec3 {
+	win := coord.Vec3(0)
 	win[1] = a.h - win[1]
 
 	ident := mgl.Ident4()
@@ -175,7 +187,7 @@ func (a *Arcball) Draw() {
 		})
 	}
 
-	p := a.MouseIn3DSpace()
+	p := a.MouseIn3DSpace(a.mouse.p)
 	p = MouseOnSphere(p.Vec2(), r)
 
 	eye := mgl.Vec3{0, 0, 0}
@@ -183,6 +195,15 @@ func (a *Arcball) Draw() {
 	// I don't understand why I need to flip this coordinate :(
 	pPrime := p.Vec2().Vec3(-p.Z())
 	theRotation := QuatLookAtV(eye, pPrime).Mat4()
+
+	// t, _ := glfw.GetTime()
+	// x := (1 + math.Sin(t)) / 2
+	// x = 1
+	// a.dragged = mgl.QuatNlerp(a.initRotation, a.currentRotation, 0*x)
+	// a.dragged = a.currentRotation.Sub(a.initRotation).Normalize()
+	a.dragged = a.currentRotation
+	log.Println(a.initRotation, a.currentRotation, a.dragged)
+	theRotation = a.Rotation().Mat4()
 
 	// Twist
 	// t, _ := glfw.GetTime()
