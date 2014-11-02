@@ -155,10 +155,10 @@ func (win *Window) SetKeyCallback(cb func(w *glfw.Window, key glfw.Key, scancode
 		}
 
 		switch key {
-		case glfw.KeyEscape:
+		case glfw.KeyEscape, glfw.KeyQ:
 			w.SetShouldClose(true)
 
-		case glfw.KeyF11:
+		case glfw.KeyF11, glfw.KeyF:
 			if action == glfw.Press {
 				win.ToggleFullscreen()
 			}
