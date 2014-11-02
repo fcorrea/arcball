@@ -110,7 +110,6 @@ func (a *Arcball) CursorPositioned(w *glfw.Window, x, y float64) {
 		start := SpherePoint(a.mouse.down)
 		end := SpherePoint(a.mouse.pos)
 		perp := start.Cross(end)
-		log.Println("Perp:", perp)
 		mag := start.Dot(end)
 
 		a.dragged = mgl.QuatRotate(mag/2000, perp)
@@ -145,6 +144,17 @@ func (a *Arcball) Reset() {
 	a.rotation = mgl.QuatIdent()
 }
 
+func MouseOnSphere(v mgl.Vec2) mgl.Vec3 {
+	// Put the Z coordinate of the mouse on the sphere
+	if v.Len() < 1 {
+		// Inside sphere
+		return v.Vec3(math.Sqrt(1 - math.Pow(v.Len(), 2)))
+	} else {
+		// Outside sphere, clamp it there.
+		return v.Normalize().Vec3(0)
+	}
+}
+
 func (a *Arcball) Draw() {
 	if q == nil {
 		q = glu.NewQuadric()
@@ -160,61 +170,19 @@ func (a *Arcball) Draw() {
 
 			gl.LineWidth(2)
 			gl.Color4f(0.75, 0.75, 0.75, 0.25)
-			glu.Sphere(q, 1, 8, 8)
+			glu.Sphere(q, 1, 8*4, 8*4)
 		})
 	}
 
 	p := a.MouseIn3DSpace()
-	// p[0] = 0
-	// t := glfw.GetTime()
-	// p = mgl.Vec3{math.Sin(t), math.Cos(t), 0}
-	// p = p.Mul(0.75)
+	p = MouseOnSphere(p.Vec2())
 
-	// Put the Z coordinate of the mouse on the sphere
-	v2 := p.Vec2()
-	if v2.Len() < 1 {
-		p = v2.Vec3(-math.Sqrt(1 - math.Pow(v2.Len(), 2)))
-	} else {
-		v2 = v2.Normalize()
-		p = v2.Vec3(0)
-	}
-
-	var up mgl.Vec3
 	eye := mgl.Vec3{0, 0, 0}
+	theRotation := QuatLookAtV(eye, p.Vec2().Vec3(-p.Z())).Mat4()
 
-	// v := math.Cos(math.Pi * (1 + p.Y()) / 2)
-	yPos := mgl.Clamp(p.Y(), -1, 1)
-
-	up = mgl.Vec3{0, -1, -yPos}
-	up = p.Cross(up)
-	up = p.Cross(up)
-	up = up.Normalize()
-	// "To" rotation, looking at mouse cursor
-	rB := mgl.QuatLookAtV(eye, p, up)
-
-	// "From" rotation: looking at camera
-	initDir := mgl.Vec3{0, 0, -1}
-	initUp := mgl.Vec3{0, 1, 0}
-	rA := mgl.QuatLookAtV(eye, initDir, initUp)
-
-	t, err := glfw.GetTime()
-	if err != nil {
-		panic(err)
-	}
-	amt := 0.5 + math.Sin(t*4)/2
-	// amt = 0
-	amt = 1
-	// amt *= 1.1
-
-	_, _, _ = rA, rB, amt
-	theRotation := mgl.QuatSlerp(rA, rB, amt).Normalize().Mat4()
-	// theRotation := mgl.QuatIdent().Mat4()
-	// theRotation := rA.Normalize().Mat4()
-
-	// Something must be wrong with my coordinate system.
-	// I'd like to eliminate the need to flip Z at this point.
-	p = mgl.Vec3{p.X(), p.Y(), -p.Z()}
-	up = mgl.Vec3{up.X(), up.Y(), -up.Z()}
+	// Twist
+	// t, _ := glfw.GetTime()
+	// theRotation = theRotation.Mul4(mgl.Rotate3DZ(t).Mat4())
 
 	showAxes := func(rot func()) {
 
@@ -237,77 +205,76 @@ func (a *Arcball) Draw() {
 			showAxes(rot)
 
 			MulMatrix(theRotation)
-			_ = theRotation
 			glh.DrawAxes()
 			drawSphere()
 		})
 	}
+	glh.With(glh.Matrix{gl.PROJECTION}, func() {
 
-	// Draw the three views
-	show(func() {}, func() {})
+		// Look at the point pointed at by the mouse
+		// eyePos := mgl.Translate3D(0, 0, 20)
+		// rot := QuatLookAtV(eyePos.Col(3).Vec3(), p).Mat4()
+		// MulMatrix(eyePos.Mul4(rot).Mul4(eyePos.Inv()))
 
-	show(func() {
-		gl.Translated(-3, 0, 0)
-	}, func() {
-		gl.Rotated(90, 0, 1, 0)
-	})
+		// Draw the three views
+		show(func() {}, func() {})
 
-	show(func() {
-		gl.Translated(3, 0, 0)
-	}, func() {
-		gl.Rotated(90, 1, 0, 0)
-	})
+		show(func() {
+			gl.Translated(-3, 0, 0)
+		}, func() {
+			gl.Rotated(90, 0, 1, 0)
+		})
 
-	// Draw the points in the three views without applying the lookAt rotation
-	glh.With(glh.Matrix{gl.MODELVIEW}, func() {
-		gl.LoadIdentity()
+		show(func() {
+			gl.Translated(3, 0, 0)
+		}, func() {
+			gl.Rotated(90, 1, 0, 0)
+		})
 
-		gl.PointSize(10)
+		// Draw the points in the three views without applying the lookAt rotation
+		glh.With(glh.Matrix{gl.MODELVIEW}, func() {
 
-		pts := func() {
-			glh.With(glh.Primitive{gl.POINTS}, func() {
-				gl.Color3d(1, 0, 0)
-				Vertex(p)
+			gl.PointSize(10)
 
-				gl.Color3d(0, 1, 0)
-				Vertex(eye)
+			pts := func() {
+				glh.With(glh.Primitive{gl.POINTS}, func() {
+					gl.Color3d(1, 0, 0)
+					Vertex(p)
 
-				gl.Color3d(0, 0, 1)
-				Vertex(up)
-				newPt := theRotation.Mul4x1(mgl.Vec4{0, 0, 1, 0})
-				gl.Color3d(0, 1, 1)
-				Vertex(newPt.Vec3())
-			})
+					gl.Color3d(0, 1, 0)
+					Vertex(eye)
+				})
+			}
 
-			gl.Color3d(1, 1, 0.25)
-			// Draw white line from centre to red dot (mouse coordinate)
-			glh.With(glh.Primitive{gl.LINES}, func() {
-				Vertex(mgl.Vec3{0, 0, 0})
-				Vertex(p)
-			})
-			// Draw "up" from red dot (the tangent vector)
-			glh.With(glh.Primitive{gl.LINES}, func() {
-				Vertex(p)
-				Vertex(p.Add(up.Mul(0.25)))
-			})
-		}
+			gl.LoadIdentity()
+			pts()
 
-		pts()
+			gl.LoadIdentity()
+			gl.Translated(-3, 0, 0)
+			gl.Rotated(90, 0, 1, 0)
+			pts()
 
-		gl.LoadIdentity()
-		gl.Translated(-3, 0, 0)
-		gl.Rotated(90, 0, 1, 0)
-		pts()
+			gl.LoadIdentity()
+			gl.Translated(3, 0, 0)
+			gl.Rotated(90, 1, 0, 0)
+			pts()
 
-		gl.LoadIdentity()
-		gl.Translated(3, 0, 0)
-		gl.Rotated(90, 1, 0, 0)
-		pts()
-
+		})
 	})
 
 }
 
 func (a *Arcball) Rotation() mgl.Quat {
 	return a.dragged.Mul(a.rotation).Normalize()
+}
+
+func QuatLookAtV(eye, center mgl.Vec3) mgl.Quat {
+	forward := center.Sub(eye).Normalize()
+
+	initialForwardDirection := mgl.Vec3{0, 0, -1}
+	dot := initialForwardDirection.Dot(forward)
+
+	angle := float64(math.Acos(float64(dot)))
+	rotationAxis := initialForwardDirection.Cross(forward)
+	return mgl.QuatRotate(-angle, rotationAxis.Normalize()).Normalize()
 }
