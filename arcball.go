@@ -144,14 +144,14 @@ func (a *Arcball) Reset() {
 	a.rotation = mgl.QuatIdent()
 }
 
-func MouseOnSphere(v mgl.Vec2) mgl.Vec3 {
+func MouseOnSphere(v mgl.Vec2, r float64) mgl.Vec3 {
 	// Put the Z coordinate of the mouse on the sphere
-	if v.Len() < 1 {
+	if v.Len() < r {
 		// Inside sphere
-		return v.Vec3(math.Sqrt(1 - math.Pow(v.Len(), 2)))
+		return v.Vec3(math.Sqrt(math.Pow(r, 2) - math.Pow(v.Len(), 2)))
 	} else {
 		// Outside sphere, clamp it there.
-		return v.Normalize().Vec3(0)
+		return v.Normalize().Vec3(0).Mul(r)
 	}
 }
 
@@ -159,6 +159,7 @@ func (a *Arcball) Draw() {
 	if q == nil {
 		q = glu.NewQuadric()
 	}
+	const r = 1
 
 	drawSphere := func() {
 		glh.With(glh.Attrib{gl.ENABLE_BIT | gl.POLYGON_BIT}, func() {
@@ -170,12 +171,12 @@ func (a *Arcball) Draw() {
 
 			gl.LineWidth(2)
 			gl.Color4f(0.75, 0.75, 0.75, 0.25)
-			glu.Sphere(q, 1, 8*4, 8*4)
+			glu.Sphere(q, r, 8*4, 8*4)
 		})
 	}
 
 	p := a.MouseIn3DSpace()
-	p = MouseOnSphere(p.Vec2())
+	p = MouseOnSphere(p.Vec2(), r)
 
 	eye := mgl.Vec3{0, 0, 0}
 	theRotation := QuatLookAtV(eye, p.Vec2().Vec3(-p.Z())).Mat4()
